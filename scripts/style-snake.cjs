@@ -1,0 +1,12 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const file = path.join(__dirname, '../assets/snake.svg');
+let svg = fs.readFileSync(file, 'utf8');
+if (svg.includes('id="snake-background"')) process.exit(0);
+const box = svg.match(/viewBox="([^"]+)"/);
+if (!box) throw new Error('Snake SVG is missing its viewBox');
+const [x, y, width, height] = box[1].split(/\s+/).map(Number);
+if (![x, y, width, height].every(Number.isFinite)) throw new Error('Invalid SVG dimensions');
+svg = svg.replace(/<svg\b[^>]*>/, tag => `${tag}<rect id="snake-background" x="${x}" y="${y}" width="${width}" height="${height}" fill="#0b0e14"/>`);
+svg = svg.replace('</svg>', '<style>@media(prefers-reduced-motion:reduce){*{animation:none!important}}</style></svg>');
+fs.writeFileSync(file, svg);

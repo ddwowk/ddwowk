@@ -1,0 +1,58 @@
+name: Update profile
+
+on:
+  schedule:
+    - cron: "23 18 * * *" # 01:23 in Bangkok
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - .github/workflows/update-profile.yml
+      - scripts/style-snake.cjs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-images
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out profile
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Generate commit statistics
+        uses: stats-organization/github-readme-stats-action@2c498845f71017821efaad14293ebc736156ef21 # v2
+        with:
+          card: stats
+          options: username=${{ github.repository_owner }}&show_icons=true&hide_rank=true&hide_border=true&bg_color=0b0e14&title_color=7dd3fc&icon_color=3b82f6&text_color=cbd5e1&custom_title=GitHub%20stats&disable_animations=true
+          path: assets/stats.svg
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_error: true
+
+      - name: Generate contribution snake
+        uses: Platane/snk/svg-only@d8f6715049803e982ee5ff501b6b9b7d5deeb09b # v3.5.0
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          outputs: |
+            assets/snake.svg?color_snake=#7dd3fc&color_dots=#161d2b,#172e58,#1d4e9e,#2563eb,#38bdf8
+
+      - name: Apply black background and reduced motion support
+        run: node scripts/style-snake.cjs
+
+      - name: Commit updated images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/stats.svg assets/snake.svg
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Refresh GitHub activity"
+          git push
